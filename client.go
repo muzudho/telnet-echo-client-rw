@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 
 	"github.com/reiver/go-oi"
@@ -18,28 +17,32 @@ type clientListener struct{}
 
 // CallTELNET - 決まった形のメソッド。
 func (c clientListener) CallTELNET(ctx telnet.Context, w telnet.Writer, r telnet.Reader) {
+	go read(r)
+	write(w)
+}
 
-	print("(^q^)Wait.\n")
+// 送られてくるメッセージを待ち構えるループです。
+func read(r telnet.Reader) {
 	var buffer [1]byte // これが満たされるまで待つ。1バイト。
 	p := buffer[:]
 
 	for {
-		n, err := r.Read(p) // TODO: コマンドの終端を知りたい。
+		n, err := r.Read(p) // 送られてくる文字がなければ、ここでブロックされます。
 
 		if n > 0 {
 			bytes := p[:n]
-			//print(string(bytes))                      // 受け取るたびに表示。
-			print(fmt.Sprintf("[%s]", string(bytes))) // 受け取るたびに表示。
+			print(string(bytes)) // 受け取るたびに表示。
 		}
 
 		if nil != err {
-			break
+			break // 相手が切断したなどの理由でエラーになるので、終了します。
 		}
 	}
 	// ↑ このループから出れない☆（＾～＾）
+}
 
-	print("(^q^)Start.\n> ")
-
+// いつでも書き込んで送信できるようにするループです。
+func write(w telnet.Writer) {
 	// scanner - 標準入力を監視します。
 	scanner := bufio.NewScanner(os.Stdin)
 	// 一行読み取ります。
@@ -47,6 +50,5 @@ func (c clientListener) CallTELNET(ctx telnet.Context, w telnet.Writer, r telnet
 		// 書き込みます。最後に改行を付けます。
 		oi.LongWrite(w, scanner.Bytes())
 		oi.LongWrite(w, []byte("\n"))
-		print("(^q^)Next.\n> ")
 	}
 }
